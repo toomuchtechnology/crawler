@@ -1,3 +1,7 @@
+import time
+
+t0 = time.time()
+
 import asyncio
 import aiohttp
 import os
@@ -6,20 +10,22 @@ from urllib.parse import urljoin, urldefrag, urlparse
 from bs4 import BeautifulSoup
 from docling.datamodel.base_models import InputFormat
 from docling.document_converter import DocumentConverter
+from docling_core.types.doc import ImageRefMode
 from dotenv import load_dotenv
-import time
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+
+logging.info(f"IMPORTED LIBRARIES IN {(time.time()-t0):.3f} SECONDS")
+
 
 load_dotenv()
 
 MAX_CONCURRENCY = int(os.getenv('MAX_CONCURRENCY', 20))
 SEED_FILE = os.getenv('SEED_FILE', 'seeds.txt')
 OUTPUT_FOLDER = os.getenv('OUTPUT_FOLDER', 'parsed_content')
-
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
 
 
 class AsyncCrawler:
@@ -119,7 +125,7 @@ class AsyncCrawler:
                 html,
                 format=InputFormat.HTML
             )
-            markdown = result.document.export_to_markdown()
+            markdown = result.document.export_to_markdown(image_mode=ImageRefMode.REFERENCED)
             self.save_markdown(url, markdown)
             logging.info(f"Parsed successfully: {url}")
         except Exception as e:
