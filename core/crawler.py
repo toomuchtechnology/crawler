@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 from docling.datamodel.base_models import InputFormat
 from docling.document_converter import DocumentConverter
 from docling_core.types.doc import ImageRefMode
+import valkey
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class AsyncCrawler:
         self.converter = DocumentConverter()
         self.semaphore = asyncio.Semaphore(max_concurrency)
         self.allowed_domains = set()
+        self.valkey = valkey.Valkey(host="localhost", port=6379, db=0, decode_responses=True)
         self._stop_event = asyncio.Event()
 
         os.makedirs(self.output_dir, exist_ok=True)
@@ -72,6 +74,7 @@ class AsyncCrawler:
         if not safe_path:
             safe_path = "index"
         filename = f"{safe_path}.md"
+        self.valkey.set(filename, url)
         filepath = os.path.join(self.output_dir, filename)
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(markdown)

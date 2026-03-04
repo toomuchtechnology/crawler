@@ -1,4 +1,6 @@
 import os
+
+import valkey
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 from typing import List
@@ -6,8 +8,11 @@ from typing import List
 from schemas import CrawlStartRequest, CrawlJobStatus, CrawlJobResult
 from core.manager import CrawlerManager
 
+from config import settings
+
 router = APIRouter(prefix="/crawl", tags=["crawl"])
 manager = CrawlerManager()
+vk = valkey.Valkey(host="localhost", port=6379, db=0, decode_responses=True)
 
 @router.post("/start", response_model=dict)
 async def start_crawl(request: CrawlStartRequest):
@@ -31,28 +36,31 @@ async def job_status(job_id: str):
         status=status,
         visited_count=len(crawler.visited),
         queue_size=crawler.queue.qsize(),
-        output_dir=crawler.output_dir
+        output_dir=settings.OUTPUT_BASE_FOLDER
     )
 
-@router.get("/{job_id}/results", response_model=List[CrawlJobResult])
-async def job_results(job_id: str):
-    crawler = manager.get_job(job_id)
-    if not crawler:
-        raise HTTPException(status_code=404, detail="Job not found")
-    if not os.path.exists(crawler.output_dir):
+@router.get("/results", response_model=List[CrawlJobResult])
+async def job_results():
+    output_dir = settings.OUTPUT_BASE_FOLDER
+    if not os.path.exists(output_dir):
         return []
+
     results = []
-    for fname in os.listdir(crawler.output_dir):
+    for fname in os.listdir(output_dir):
         if fname.endswith(".md"):
-            results.append(CrawlJobResult(url="unknown", markdown_file=fname))
+            results.append(CrawlJobResult(url=vk.get(fname), markdown_file=fname))
     return results
 
-@router.get("/{job_id}/file/{filename}")
-async def download_file(job_id: str, filename: str):
-    crawler = manager.get_job(job_id)
-    if not crawler:
-        raise HTTPException(status_code=404, detail="Job not found")
-    file_path = os.path.join(crawler.output_dir, filename)
+@router.post("/clear")
+async def clear_results():
+    output_dir = settings.OUTPUT_BASE_FOLDER
+    for fname in os.listdir(output_dir):
+        os.remove(fname)
+    return {"Folder cleared"}
+
+@router.get("/file/{filename}")
+async def download_file(filename: str):
+    file_path = os.path.join(settings.OUTPUT_BASE_FOLDER, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(file_path, media_type="text/markdown", filename=filename)

@@ -12,7 +12,7 @@ class CrawlerManager:
 
     async def start_job(self, seeds: list, max_concurrency: Optional[int] = None) -> str:
         job_id = str(uuid.uuid4())
-        output_dir = f"{settings.OUTPUT_BASE_FOLDER}/{job_id}"
+        output_dir = settings.OUTPUT_BASE_FOLDER
         concurrency = max_concurrency or settings.MAX_CONCURRENCY
 
         crawler = AsyncCrawler(job_id, seeds, concurrency, output_dir)
