@@ -1,3 +1,10 @@
-It's an asynchronous web crawler built on BeautifulSoup and Docling which saves parsed pages in Markdown. It crawls starting from base URLs in seeds.txt (a sample file is provided).
+It's an asynchronous web crawler built on BeautifulSoup and Docling which saves parsed pages in Markdown.
 
-Change the number of concurrent processes, the seed text file name and the output folder name in .env. 
+Launch like this:
+```
+uvicorn main:app --reload
+```
+
+It runs on port 8000 and requires Valkey running on port 6379.
+
+Get all endpoints by going to localhost:8000/docs.
