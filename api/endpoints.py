@@ -1,7 +1,7 @@
 import os
 
 import valkey
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from typing import List
 
@@ -55,7 +55,7 @@ async def job_results():
                 CrawlJobResult(
                     url=vk.get(fname),
                     markdown_file=fname,
-                    image_path=image
+                    image_url=image
                 )
             )
     return results
@@ -67,7 +67,7 @@ async def clear_results():
         p = os.path.join(output_dir, fname)
         os.remove(p)
     vk.flushall()
-    return {"Folder cleared"}
+    return {"message": "Folder and Valkey cleared"}
 
 @router.get("/file/{filename}")
 async def download_file(filename: str):
@@ -95,12 +95,9 @@ async def stop_job(job_id: str):
     return {"message": "Job stopping"}
 
 @router.get("/image")
-async def get_image_by_url(url: str):
-    image_path = os.path.join(settings.OUTPUT_BASE_FOLDER, vk.get(url))
-    if not image_path:
+async def get_image_url_by_page_url(url: str):
+    image_url = vk.get(url)
+    if not image_url:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    if not os.path.exists(image_path):
-        raise HTTPException(status_code=404, detail="Image file missing")
-
-    return FileResponse(image_path)
+    return {"url": image_url}

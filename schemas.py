@@ -15,4 +15,4 @@ class CrawlJobStatus(BaseModel):
 class CrawlJobResult(BaseModel):
     url: str
     markdown_file: str
-    image_path: str
+    image_url: str
