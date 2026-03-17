@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import random
 from urllib.parse import urljoin, urldefrag, urlparse
 
 import aiohttp
@@ -68,6 +69,18 @@ class AsyncCrawler:
                 links.add(href)
         return links
 
+    def extract_images(self, base_url, html):
+        soup = BeautifulSoup(html, "html.parser")
+        images = []
+
+        for img in soup.find_all("img", src=True):
+            src = urljoin(base_url, img["src"])
+            parsed = urlparse(src)
+            if parsed.scheme in ("http", "https"):
+                images.append(src)
+
+        return images
+
     def save_markdown(self, url, markdown):
         parsed = urlparse(url)
         safe_path = parsed.netloc + parsed.path
@@ -95,6 +108,11 @@ class AsyncCrawler:
             logger.error(f"Failed to parse: {url}")
             return
 
+        images = self.extract_images(url, html)
+        if images:
+            random_image = random.choice(images)
+            await self.download_image(session, random_image, url)
+
         try:
             result = self.converter.convert_string(html, format=InputFormat.HTML)
             markdown = result.document.export_to_markdown(image_mode=ImageRefMode.REFERENCED)
@@ -107,6 +125,27 @@ class AsyncCrawler:
         for link in self.extract_links(url, html):
             if link not in self.visited:
                 await self.queue.put(link)
+
+    async def download_image(self, session, url, page_url):
+        try:
+            async with self.semaphore:
+                async with session.get(url, timeout=10) as response:
+                    if response.status == 200 and "image" in response.headers.get("Content-Type", ""):
+                        ext = url.split(".")[-1].split("?")[0]
+                        filename = f"img_{hash(url)}.{ext}"
+                        filepath = os.path.join(settings.OUTPUT_BASE_FOLDER, filename)
+
+                        content = await response.read()
+                        with open(filepath, "wb") as f:
+                            f.write(content)
+
+                        self.valkey.set(page_url, filename)
+
+                        return filename
+        except Exception as e:
+            logger.error(f"Image download failed: {url} | {e}")
+
+        return None
 
     async def worker(self, session):
         while not self._stop_event.is_set():

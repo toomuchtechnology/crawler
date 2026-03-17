@@ -49,14 +49,24 @@ async def job_results():
     results = []
     for fname in os.listdir(output_dir):
         if fname.endswith(".md"):
-            results.append(CrawlJobResult(url=vk.get(fname), markdown_file=fname))
+            image = vk.get(vk.get(fname)) if vk.get(vk.get(fname)) is not None else ''  # url -> image
+
+            results.append(
+                CrawlJobResult(
+                    url=vk.get(fname),
+                    markdown_file=fname,
+                    image_path=image
+                )
+            )
     return results
 
 @router.post("/clear")
 async def clear_results():
     output_dir = settings.OUTPUT_BASE_FOLDER
     for fname in os.listdir(output_dir):
-        os.remove(fname)
+        p = os.path.join(output_dir, fname)
+        os.remove(p)
+    vk.flushall()
     return {"Folder cleared"}
 
 @router.get("/file/{filename}")
@@ -83,3 +93,14 @@ async def stop_job(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     crawler.stop()
     return {"message": "Job stopping"}
+
+@router.get("/image")
+async def get_image_by_url(url: str):
+    image_path = os.path.join(settings.OUTPUT_BASE_FOLDER, vk.get(url))
+    if not image_path:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    if not os.path.exists(image_path):
+        raise HTTPException(status_code=404, detail="Image file missing")
+
+    return FileResponse(image_path)
