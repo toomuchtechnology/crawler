@@ -49,13 +49,14 @@ async def job_results():
     results = []
     for fname in os.listdir(output_dir):
         if fname.endswith(".md"):
-            image = vk.get(vk.get(fname)) if vk.get(vk.get(fname)) is not None else ''  # url -> image
+            image_urls = vk.get(vk.get(fname))
+            processed_image_urls = image_urls.split(',') if image_urls is not None else []
 
             results.append(
                 CrawlJobResult(
                     url=vk.get(fname),
                     markdown_file=fname,
-                    image_url=image
+                    image_urls=processed_image_urls
                 )
             )
     return results
@@ -95,9 +96,9 @@ async def stop_job(job_id: str):
     return {"message": "Job stopping"}
 
 @router.get("/image")
-async def get_image_url_by_page_url(url: str):
-    image_url = vk.get(url)
-    if not image_url:
-        raise HTTPException(status_code=404, detail="Image not found")
+async def get_image_urls_by_page_url(url: str):
+    image_urls = vk.get(url)
+    if not image_urls:
+        raise HTTPException(status_code=404, detail="No images found")
 
-    return {"url": image_url}
+    return {"image_urls": image_urls.split(',')}

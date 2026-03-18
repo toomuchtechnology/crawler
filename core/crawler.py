@@ -109,9 +109,7 @@ class AsyncCrawler:
             return
 
         images = self.extract_images(url, html)
-        if images:
-            random_image = random.choice(images)
-            self.valkey.set(url, random_image)
+        self.valkey.set(url, ','.join(images))
 
         try:
             result = self.converter.convert_string(html, format=InputFormat.HTML)
