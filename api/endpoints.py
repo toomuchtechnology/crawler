@@ -40,6 +40,14 @@ async def job_status(job_id: str):
         output_dir=settings.OUTPUT_BASE_FOLDER
     )
 
+@router.post("/{job_id}/stop")
+async def stop_job(job_id: str):
+    crawler = manager.get_job(job_id)
+    if not crawler:
+        raise HTTPException(status_code=404, detail="Job not found")
+    crawler.stop()
+    return {"message": "Job stopping"}
+
 @router.get("/results", response_model=List[CrawlJobResult])
 async def job_results():
     output_dir = settings.OUTPUT_BASE_FOLDER
@@ -87,15 +95,8 @@ async def get_file_url(filename: str):
         raise HTTPException(status_code=404, detail="File URL not found")
     return {"url": url}
 
-@router.post("/{job_id}/stop")
-async def stop_job(job_id: str):
-    crawler = manager.get_job(job_id)
-    if not crawler:
-        raise HTTPException(status_code=404, detail="Job not found")
-    crawler.stop()
-    return {"message": "Job stopping"}
 
-@router.get("/image")
+@router.get("/images")
 async def get_image_urls_by_page_url(url: str):
     image_urls = vk.get(url)
     if not image_urls:

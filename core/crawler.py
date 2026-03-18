@@ -72,9 +72,22 @@ class AsyncCrawler:
     def extract_images(self, base_url, html):
         soup = BeautifulSoup(html, "html.parser")
         images = []
+        excluded_substrings = ['logo', 'footer', 'header', 'ico',
+                               'nav', 'menu', 'btn', 'button', 'layout',
+                               'arrow', 'partner']
 
         for img in soup.find_all("img", src=True):
             src = urljoin(base_url, img["src"])
+
+            # check excluded substrings in <img class="...">
+            classes = img.get('class', [])
+            if any(any(substr in cls.lower() for substr in excluded_substrings) for cls in classes):
+                continue
+
+            # check excluded substrings in URLs
+            if any(substr in src.lower() for substr in excluded_substrings):
+                continue
+
             parsed = urlparse(src)
             if parsed.scheme in ("http", "https"):
                 images.append(src)
