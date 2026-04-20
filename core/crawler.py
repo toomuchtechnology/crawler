@@ -11,6 +11,7 @@ from docling_core.types.doc import ImageRefMode
 from redis.asyncio import Redis as Valkey
 from config import settings
 import aiofiles
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,10 @@ class AsyncCrawler:
         safe_path = safe_path.strip("/").replace("/", "_")
         if not safe_path:
             safe_path = "index"
+        query = parsed.query
+        if query:
+            query_hash = hashlib.md5(query.encode()).hexdigest()[:8]
+            safe_path = f"{safe_path}_q{query_hash}"
         filename = f"{safe_path}.md"
         await self.valkey.set(filename, url)
         filepath = os.path.join(self.output_dir, filename)
