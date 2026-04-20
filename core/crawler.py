@@ -2,9 +2,11 @@ import asyncio
 import logging
 import os
 import random
+import ssl
 from urllib.parse import urljoin, urldefrag, urlparse
 
 import aiohttp
+import certifi
 from bs4 import BeautifulSoup
 from docling.datamodel.base_models import InputFormat
 from docling.document_converter import DocumentConverter
@@ -147,7 +149,11 @@ class AsyncCrawler:
             self.queue.task_done()
 
     async def run(self):
-        async with aiohttp.ClientSession() as session:
+        #ssl_context = ssl.create_default_context(cafile=certifi.where())
+        #connector = aiohttp.TCPConnector(ssl=ssl_context)
+        connector = aiohttp.TCPConnector(ssl=False)
+
+        async with aiohttp.ClientSession(connector=connector) as session:
             workers = [
                 asyncio.create_task(self.worker(session))
                 for _ in range(self.semaphore._value)
