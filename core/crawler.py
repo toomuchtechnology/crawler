@@ -149,8 +149,6 @@ class AsyncCrawler:
             self.queue.task_done()
 
     async def run(self):
-        #ssl_context = ssl.create_default_context(cafile=certifi.where())
-        #connector = aiohttp.TCPConnector(ssl=ssl_context)
         connector = aiohttp.TCPConnector(ssl=False)
 
         async with aiohttp.ClientSession(connector=connector) as session:

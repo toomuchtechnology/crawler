@@ -12,11 +12,11 @@ Use ```docker compose start``` and ```docker compose stop``` to start and stop t
 **Local installation**:
 1. .env: ```VALKEY_HOST=localhost```
 2. Activate venv (preferably).
-3. Install the desired version of ```torch``` and ```torchvision``` from [https://pytorch.org/get-started/locally/]().
+3. Install the desired version of ```torch``` and ```torchvision``` from [https://pytorch.org/get-started/locally/](https://pytorch.org/get-started/locally/).
 4. ```pip install -r requirements.txt```.
 5. ```docker run -p 6379:6379 valkey/valkey```
 6. ```uvicorn main.app --host 0.0.0.0 --port 8000```
 
 
 
-Get all endpoints by going to [localhost:8000/docs]().
+Get all endpoints by going to [localhost:8000/docs](localhost:8000/docs).
