@@ -1,20 +1,19 @@
 import asyncio
 import logging
 import os
-import random
-import ssl
 from urllib.parse import urljoin, urldefrag, urlparse
 
 import aiohttp
-import certifi
 from bs4 import BeautifulSoup
 from docling.datamodel.base_models import InputFormat
 from docling.document_converter import DocumentConverter
 from docling_core.types.doc import ImageRefMode
-import valkey
+from redis.asyncio import Redis as Valkey
 from config import settings
+import aiofiles
 
 logger = logging.getLogger(__name__)
+
 
 class AsyncCrawler:
     def __init__(self, job_id: str, seeds: list, max_concurrency: int, output_dir: str):
@@ -25,7 +24,9 @@ class AsyncCrawler:
         self.converter = DocumentConverter()
         self.semaphore = asyncio.Semaphore(max_concurrency)
         self.allowed_domains = set()
-        self.valkey = valkey.Valkey(host=settings.VALKEY_HOST, port=6379, db=0, decode_responses=True)
+        self.valkey = Valkey(
+            host=settings.VALKEY_HOST, port=6379, db=0, decode_responses=True
+        )
         self._stop_event = asyncio.Event()
 
         os.makedirs(self.output_dir, exist_ok=True)
@@ -51,9 +52,8 @@ class AsyncCrawler:
         try:
             async with self.semaphore:
                 async with session.get(url, timeout=10) as response:
-                    if (
-                        response.status == 200
-                        and "text/html" in response.headers.get("Content-Type", "")
+                    if response.status == 200 and "text/html" in response.headers.get(
+                        "Content-Type", ""
                     ):
                         return await response.text()
         except Exception as e:
@@ -74,16 +74,29 @@ class AsyncCrawler:
     def extract_images(self, base_url, html):
         soup = BeautifulSoup(html, "html.parser")
         images = []
-        excluded_substrings = ['logo', 'footer', 'header', 'ico',
-                               'nav', 'menu', 'btn', 'button', 'layout',
-                               'arrow', 'partner']
+        excluded_substrings = [
+            "logo",
+            "footer",
+            "header",
+            "ico",
+            "nav",
+            "menu",
+            "btn",
+            "button",
+            "layout",
+            "arrow",
+            "partner",
+        ]
 
         for img in soup.find_all("img", src=True):
             src = urljoin(base_url, img["src"])
 
             # check excluded substrings in <img class="...">
-            classes = img.get('class', [])
-            if any(any(substr in cls.lower() for substr in excluded_substrings) for cls in classes):
+            classes = img.get("class", [])
+            if any(
+                any(substr in cls.lower() for substr in excluded_substrings)
+                for cls in classes
+            ):
                 continue
 
             # check excluded substrings in URLs
@@ -96,17 +109,17 @@ class AsyncCrawler:
 
         return images
 
-    def save_markdown(self, url, markdown):
+    async def save_markdown(self, url, markdown):
         parsed = urlparse(url)
         safe_path = parsed.netloc + parsed.path
         safe_path = safe_path.strip("/").replace("/", "_")
         if not safe_path:
             safe_path = "index"
         filename = f"{safe_path}.md"
-        self.valkey.set(filename, url)
+        await self.valkey.set(filename, url)
         filepath = os.path.join(self.output_dir, filename)
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(markdown)
+        async with aiofiles.open(filepath, "w", encoding="utf-8") as f:
+            await f.write(markdown)
         return filename
 
     async def process_url(self, session, url):
@@ -124,12 +137,17 @@ class AsyncCrawler:
             return
 
         images = self.extract_images(url, html)
-        self.valkey.set(url, ','.join(images))
+        await self.valkey.set(url, ",".join(images))
 
         try:
-            result = self.converter.convert_string(html, format=InputFormat.HTML)
-            markdown = result.document.export_to_markdown(image_mode=ImageRefMode.REFERENCED)
-            filename = self.save_markdown(url, markdown)
+            result = await asyncio.to_thread(
+                self.converter.convert_string, html, InputFormat.HTML
+            )
+            markdown = result.document.export_to_markdown(
+                image_mode=ImageRefMode.REFERENCED
+            )
+
+            filename = await self.save_markdown(url, markdown)
             logger.info(f"Parsed successfully: {url} -> {filename}")
         except Exception as e:
             logger.error(f"Docling conversion failed: {url} | {e}")

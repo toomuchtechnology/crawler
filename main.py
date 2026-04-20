@@ -11,6 +11,9 @@ logging.basicConfig(
 app = FastAPI(title="Async Web Crawler", version="1.0.0")
 app.include_router(router)
 
+
 @app.get("/")
 async def root():
-    return {"message": "Welcome to the Async Crawler API. Go to /docs for documentation."}
+    return {
+        "message": "Welcome to the Async Crawler API. Go to /docs for documentation."
+    }
